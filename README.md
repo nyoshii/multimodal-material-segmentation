@@ -71,7 +71,7 @@ The pixel numbers of each material class in train, val and test set are shown be
 ## Usage
 ### Prerequisites
 
-We tested our code with Python 3.6.12 on Ubuntu 18.04 LTS.  Our code depends on the following modules.
+We tested our code with Python 3.6.12 on Ubuntu 22.04 LTS.  Our code depends on the following modules.
 * torch==1.7.1
 * matplotlib==3.3.2
 * numpy==1.19.2
