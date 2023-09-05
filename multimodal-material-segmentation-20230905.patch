@@ -1,0 +1,155 @@
+diff --unifie --recursive original-multimodal-material-segmentation/dataloaders/custom_transforms_multimodal.py /home/n-yoshii/humpback-home/multimodal_material_segmentation/multimodal-material-segmentation-main/dataloaders/custom_transforms_multimodal.py
+--- original-multimodal-material-segmentation/dataloaders/custom_transforms_multimodal.py	2023-08-17 11:28:56.149801329 +0900
++++ /home/n-yoshii/humpback-home/multimodal_material_segmentation/multimodal-material-segmentation-main/dataloaders/custom_transforms_multimodal.py	2023-06-23 11:43:26.000000000 +0900
+@@ -65,9 +65,11 @@
+         img = torch.from_numpy(img).float()
+         mask = torch.from_numpy(mask).float()
+         aolp = torch.from_numpy(aolp).float()
+-        dolp = torch.from_numpy(dolp).float()
++        # add N to C X H X W
++        dolp = torch.from_numpy(dolp).float().unsqueeze(0)
+         SS = torch.from_numpy(SS).float()
+-        nir = torch.from_numpy(nir).float()
++        # add N to C X H X W
++        nir = torch.from_numpy(nir).float().unsqueeze(0)
+         nir_mask = torch.from_numpy(nir_mask).float()
+ 
+         u_map = sample['u_map']
+
+diff --unifie --recursive original-multimodal-material-segmentation/test.py /home/n-yoshii/humpback-home/multimodal_material_segmentation/multimodal-material-segmentation-main/test.py
+--- original-multimodal-material-segmentation/test.py	2023-08-17 11:28:56.189801291 +0900
++++ /home/n-yoshii/humpback-home/multimodal_material_segmentation/multimodal-material-segmentation-main/test.py	2023-07-13 11:40:25.000000000 +0900
+@@ -6,7 +6,7 @@
+ import matplotlib.pyplot as plt
+ 
+ from mypath import Path
+-from dataloaders import make_data_loader
++#from dataloaders import make_data_loader
+ from modeling.sync_batchnorm.replicate import patch_replication_callback
+ from modeling.deeplab import *
+ from utils.loss import SegmentationLosses
+@@ -17,6 +17,23 @@
+ from utils.metrics import Evaluator
+ 
+ 
++from dataloaders.datasets import multimodal_dataset
++from torch.utils.data import DataLoader
++def make_data_loader(args, **kwargs):
++    if args.dataset == 'multimodal_dataset':
++        train_set = multimodal_dataset.MultimodalDatasetSegmentation(args, split='train')
++        val_set = multimodal_dataset.MultimodalDatasetSegmentation(args, split='val')
++        test_set = multimodal_dataset.MultimodalDatasetSegmentation(args, split='test')
++        num_class = train_set.NUM_CLASSES
++        train_loader = DataLoader(train_set, batch_size=args.batch_size, shuffle=True, **kwargs)
++        val_loader = DataLoader(val_set, batch_size=args.batch_size, shuffle=False, **kwargs)
++        test_loader = DataLoader(test_set, batch_size=args.batch_size, shuffle=False, **kwargs)
++
++        return train_loader, val_loader, test_loader, num_class
++
++    else:
++        raise NotImplementedError
++
+ 
+ LABEL_COLORS_NEW_JP = {
+     "#2ca02c" : "アスファルト",      #0
+@@ -162,10 +179,10 @@
+         target_all = None
+         output_all = None
+         for i, sample in enumerate(tbar):
+-            image, target, aolp, dolp, nir, nir_mask, uvmap,mask = \
+-                sample['image'], sample['label'], sample['aolp'], sample['dolp'], sample['nir'], sample['nir_mask'], sample['uvmap'],sample['mask']
++            image, target, aolp, dolp, nir, nir_mask, umap, vmap, mask = \
++                sample['image'], sample['label'], sample['aolp'], sample['dolp'], sample['nir'], sample['nir_mask'], sample['u_map'], sample['v_map'], sample['mask']
+             if self.args.cuda:
+-                image, target, aolp, dolp, nir, nir_mask, uvmap,mask = image.cuda(), target.cuda(), aolp.cuda(), dolp.cuda(), nir.cuda(), nir_mask.cuda(), uvmap.cuda(),mask.cuda()
++                image, target, aolp, dolp, nir, nir_mask, umap, vmap, mask = image.cuda(), target.cuda(), aolp.cuda(), dolp.cuda(), nir.cuda(), nir_mask.cuda(), umap.cuda(), vmap.cuda(), mask.cuda()
+             aolp = aolp if self.args.use_aolp else None
+             dolp = dolp if self.args.use_dolp else None
+             nir  = nir  if self.args.use_nir else None
+diff --unifie --recursive original-multimodal-material-segmentation/train.py /home/n-yoshii/humpback-home/multimodal_material_segmentation/multimodal-material-segmentation-main/train.py
+--- original-multimodal-material-segmentation/train.py	2023-08-17 11:28:56.189801291 +0900
++++ /home/n-yoshii/humpback-home/multimodal_material_segmentation/multimodal-material-segmentation-main/train.py	2023-07-10 11:46:46.000000000 +0900
+@@ -5,7 +5,7 @@
+ import random
+ from modeling.sync_batchnorm.batchnorm import SynchronizedBatchNorm2d
+ from mypath import Path
+-from dataloaders import make_data_loader
++#from dataloaders import make_data_loader
+ from modeling.sync_batchnorm.replicate import patch_replication_callback
+ from modeling.deeplab import *
+ from utils.loss import SegmentationLosses
+@@ -16,6 +16,25 @@
+ from utils.metrics import Evaluator
+ 
+ 
++from dataloaders.datasets import multimodal_dataset
++from torch.utils.data import DataLoader
++def make_data_loader(args, **kwargs):
++
++    if args.dataset == 'multimodal_dataset':
++        train_set = multimodal_dataset.MultimodalDatasetSegmentation(args, split='train')
++        val_set = multimodal_dataset.MultimodalDatasetSegmentation(args, split='val')
++        test_set = multimodal_dataset.MultimodalDatasetSegmentation(args, split='test')
++        num_class = train_set.NUM_CLASSES
++        train_loader = DataLoader(train_set, batch_size=args.batch_size, shuffle=True, **kwargs)
++        val_loader = DataLoader(val_set, batch_size=args.batch_size, shuffle=False, **kwargs)
++        test_loader = DataLoader(test_set, batch_size=args.batch_size, shuffle=False, **kwargs)
++
++        return train_loader, val_loader, test_loader, num_class
++
++    else:
++        raise NotImplementedError
++
++
+ class TrainerMultimodal(object):
+     def __init__(self, args):
+         self.args = args
+@@ -107,8 +126,8 @@
+         num_img_tr = len(self.train_loader)
+         scaler = torch.cuda.amp.GradScaler()
+         for i, sample in enumerate(tbar):
+-            image, target, aolp, dolp, nir, nir_mask, uvmap,mask = \
+-                sample['image'], sample['label'], sample['aolp'], sample['dolp'], sample['nir'], sample['nir_mask'], sample['uvmap'],sample['mask']
++            image, target, aolp, dolp, nir, nir_mask, umap, vmap, mask = \
++                sample['image'], sample['label'], sample['aolp'], sample['dolp'], sample['nir'], sample['nir_mask'], sample['u_map'], sample['v_map'], sample['mask']
+ 
+             # # check tensors            
+             # import matplotlib.pyplot as plt
+@@ -129,7 +148,7 @@
+             # continue
+ 
+             if self.args.cuda:
+-                image, target, aolp, dolp, nir, nir_mask, uvmap,mask = image.cuda(), target.cuda(), aolp.cuda(), dolp.cuda(), nir.cuda(), nir_mask.cuda(), uvmap.cuda(),mask.cuda()
++                image, target, aolp, dolp, nir, nir_mask, umap, vmap, mask = image.cuda(), target.cuda(), aolp.cuda(), dolp.cuda(), nir.cuda(), nir_mask.cuda(), umap.cuda(), vmap.cuda(), mask.cuda()
+             self.scheduler(self.optimizer, i, epoch, self.best_pred)
+             self.optimizer.zero_grad()
+             aolp = aolp if self.args.use_aolp else None
+@@ -174,10 +193,10 @@
+         test_loss = 0.0
+         scaler = torch.cuda.amp.GradScaler()
+         for i, sample in enumerate(tbar):
+-            image, target, aolp, dolp, nir, nir_mask, uvmap,mask = \
+-                sample['image'], sample['label'], sample['aolp'], sample['dolp'], sample['nir'], sample['nir_mask'], sample['uvmap'],sample['mask']
++            image, target, aolp, dolp, nir, nir_mask, umap, vmap, mask = \
++                sample['image'], sample['label'], sample['aolp'], sample['dolp'], sample['nir'], sample['nir_mask'], sample['u_map'], sample['v_map'], sample['mask']
+             if self.args.cuda:
+-                image, target, aolp, dolp, nir, nir_mask, uvmap,mask = image.cuda(), target.cuda(), aolp.cuda(), dolp.cuda(), nir.cuda(), nir_mask.cuda(), uvmap.cuda(),mask.cuda()
++                image, target, aolp, dolp, nir, nir_mask, umap, vmap, mask = image.cuda(), target.cuda(), aolp.cuda(), dolp.cuda(), nir.cuda(), nir_mask.cuda(), umap.cuda(), vmap.cuda(), mask.cuda()
+             aolp = aolp if self.args.use_aolp else None
+             dolp = dolp if self.args.use_dolp else None
+             nir  = nir  if self.args.use_nir else None
+@@ -236,10 +255,10 @@
+         scaler = torch.cuda.amp.GradScaler()
+         output_all = None
+         for i, sample in enumerate(tbar):
+-            image, target, aolp, dolp, nir, nir_mask, uvmap,mask = \
+-                sample['image'], sample['label'], sample['aolp'], sample['dolp'], sample['nir'], sample['nir_mask'], sample['uvmap'],sample['mask']
++            image, target, aolp, dolp, nir, nir_mask, umap, vmap, mask = \
++                sample['image'], sample['label'], sample['aolp'], sample['dolp'], sample['nir'], sample['nir_mask'], sample['u_map'], sample['v_map'], sample['mask']
+             if self.args.cuda:
+-                image, target, aolp, dolp, nir, nir_mask, uvmap,mask = image.cuda(), target.cuda(), aolp.cuda(), dolp.cuda(), nir.cuda(), nir_mask.cuda(), uvmap.cuda(),mask.cuda()
++                image, target, aolp, dolp, nir, nir_mask, umap, vmap, mask = image.cuda(), target.cuda(), aolp.cuda(), dolp.cuda(), nir.cuda(), nir_mask.cuda(), umap.cuda(), vmap.cuda(), mask.cuda()
+             aolp = aolp if self.args.use_aolp else None
+             dolp = dolp if self.args.use_dolp else None
+             nir  = nir  if self.args.use_nir else None
+
