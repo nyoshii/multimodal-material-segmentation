@@ -86,7 +86,7 @@ in your (virtual) environment.
 
 ### Prepare of the semantic segmentation guidance
 Put the semantic segmentation result images `/dataset/multimodal_dataset/SSGT4MS/` in `/dataset/multimodal_dataset/SSmask/`.
-~~Train a semantic segmentation network model by images in `/dataset/multimodal_dataset/polL_color/` and `/dataset/multimodal_dataset/SSGT4MS/`. Put the semantic segmentation result images in `/dataset/multimodal_dataset/SSmask/`.~~
+If you have your own dataset other than MCubeS dataset, ~~Train a semantic segmentation network model by images in `/dataset/multimodal_dataset/polL_color/` and `/dataset/multimodal_dataset/SSGT4MS/`. Put the semantic segmentation result images in `/dataset/multimodal_dataset/SSmask/`.~~
 
 ### Training and testing
 * To train MCubeSNet, simply run 
