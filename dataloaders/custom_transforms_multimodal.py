@@ -65,10 +65,10 @@ class ToTensor(object):
         img = torch.from_numpy(img).float()
         mask = torch.from_numpy(mask).float()
         aolp = torch.from_numpy(aolp).float()
-        # add N to C X H X W
+        # add C to H X W
         dolp = torch.from_numpy(dolp).float().unsqueeze(0)
         SS = torch.from_numpy(SS).float()
-        # add N to C X H X W
+        # add C to H X W
         nir = torch.from_numpy(nir).float().unsqueeze(0)
         nir_mask = torch.from_numpy(nir_mask).float()
 
